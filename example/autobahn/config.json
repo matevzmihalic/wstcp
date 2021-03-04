@@ -1,0 +1,16 @@
+{
+  "outdir": "/autobahn/reports",
+  "servers": [
+    {
+      "url": "ws://example:9099"
+    }
+  ],
+  "cases": [
+    "*"
+  ],
+  "exclude-cases": [
+    "9.*",
+    "13.*"
+  ],
+  "exclude-agent-cases": {}
+}
