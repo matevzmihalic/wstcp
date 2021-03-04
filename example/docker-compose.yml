@@ -1,11 +1,11 @@
 version: "3.7"
 
 services:
-  example:
+  echo:
     image: golang:1.16.0-alpine3.13
     expose:
       - "9099"
-    command: go run .
+    command: go run echo.go
     working_dir: /wstcp/example
     volumes:
       - ../:/wstcp
@@ -14,8 +14,6 @@ services:
     image: crossbario/autobahn-testsuite
     command: wstest --mode fuzzingclient --debug --spec /autobahn/config.json
     depends_on:
-      - example
-    ports:
-      - "9001:9001"
+      - echo
     volumes:
       - ./autobahn:/autobahn

@@ -2,7 +2,7 @@
   "outdir": "/autobahn/reports",
   "servers": [
     {
-      "url": "ws://example:9099"
+      "url": "ws://echo:9099"
     }
   ],
   "cases": [
@@ -10,6 +10,7 @@
   ],
   "exclude-cases": [
     "9.*",
+    "12.*",
     "13.*"
   ],
   "exclude-agent-cases": {}

@@ -32,7 +32,7 @@ func TestWSTCP_integration(t *testing.T) {
 				assert.NoError(t, err)
 				defer inConn.Close()
 
-				b := make([]byte, 3)
+				b := make([]byte, 13)
 				for {
 					n, err := conn.Read(b)
 					if err != nil {
@@ -54,7 +54,7 @@ func TestWSTCP_integration(t *testing.T) {
 		assert.NoError(t, err)
 
 		go func() {
-			out := make([]byte, 0, 11)
+			out := make([]byte, 0, 2)
 			for {
 				b, err := wsutil.ReadServerBinary(c)
 				out = append(out, b...)
@@ -79,7 +79,6 @@ func TestWSTCP_integration(t *testing.T) {
 			OpCode: ws.OpClose,
 		})
 		assert.NoError(t, err)
-
 	}()
 
 	go func() {
@@ -105,80 +104,6 @@ func TestWSTCP_integration(t *testing.T) {
 
 	wg.Wait()
 	ln.Close()
-}
-
-func TestWSTCP_Close(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name            string
-		connection      WSTCP
-		rwc             *mockRWC
-		expected        error
-		expectedWritten []byte
-	}{
-		{
-			name: "non ws success",
-			connection: WSTCP{
-				ws: false,
-			},
-			rwc: &mockRWC{},
-		},
-		{
-			name: "non ws with error",
-			connection: WSTCP{
-				ws: false,
-			},
-			rwc: &mockRWC{
-				closedErr: io.ErrClosedPipe,
-			},
-			expected: io.ErrClosedPipe,
-		},
-		{
-			name: "ws err on close",
-			connection: WSTCP{
-				ws: true,
-			},
-			rwc: &mockRWC{
-				closedErr: io.ErrClosedPipe,
-			},
-			expected: io.ErrClosedPipe,
-		},
-		{
-			name: "ws err on write",
-			connection: WSTCP{
-				ws: true,
-			},
-			rwc: &mockRWC{
-				writeErr: io.EOF,
-			},
-			expected: io.EOF,
-		},
-		{
-			name: "ws success",
-			connection: WSTCP{
-				ws: true,
-			},
-			rwc:             &mockRWC{},
-			expectedWritten: []byte{0x88, 0x0},
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			tc := tc
-
-			tc.connection.rwc = tc.rwc
-			err := tc.connection.Close()
-			if tc.expected == nil {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.expectedWritten, tc.rwc.Bytes())
-			} else {
-				assert.EqualError(t, err, tc.expected.Error())
-			}
-			assert.True(t, tc.rwc.closed)
-		})
-	}
 }
 
 type mockRWC struct {
