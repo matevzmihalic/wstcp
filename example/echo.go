@@ -38,9 +38,6 @@ func main() {
 			b := make([]byte, 66000)
 			for {
 				n, err := conn.Read(b)
-				//if err == wstcp.ErrNoOp {
-				//	break
-				//}
 				if err != nil {
 					log.Println("conn.Read", err)
 					return

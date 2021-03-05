@@ -8,21 +8,23 @@ import (
 	"github.com/gobwas/ws/wsutil"
 )
 
+// WSTCP implements io.ReadWriteCloser
 type WSTCP struct {
-	rwc        io.ReadWriteCloser
+	conn       io.ReadWriteCloser
 	firstBytes []byte
 
 	wsReader *wsutil.Reader
 	wsWriter *wsutil.Writer
 }
 
-func New(rwc io.ReadWriteCloser) (*WSTCP, error) {
+// New wraps incoming connection in WSTCP
+func New(conn io.ReadWriteCloser) (*WSTCP, error) {
 	out := &WSTCP{
-		rwc:        rwc,
+		conn:       conn,
 		firstBytes: make([]byte, 3),
 	}
 
-	_, err := io.ReadFull(rwc, out.firstBytes)
+	_, err := io.ReadFull(conn, out.firstBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -35,12 +37,12 @@ func New(rwc io.ReadWriteCloser) (*WSTCP, error) {
 
 		state := ws.StateServerSide
 		out.wsReader = &wsutil.Reader{
-			Source:         rwc,
+			Source:         conn,
 			State:          state,
 			CheckUTF8:      true,
-			OnIntermediate: wsutil.ControlFrameHandler(rwc, state),
+			OnIntermediate: wsutil.ControlFrameHandler(conn, state),
 		}
-		out.wsWriter = wsutil.NewWriter(rwc, state, 0)
+		out.wsWriter = wsutil.NewWriter(conn, state, 0)
 	}
 
 	return out, nil
@@ -67,7 +69,7 @@ func (c *WSTCP) Read(b []byte) (int, error) {
 	}
 
 	if h.OpCode == ws.OpText || h.OpCode == ws.OpBinary {
-		c.wsWriter.Reset(c.rwc, c.wsReader.State, h.OpCode)
+		c.wsWriter.Reset(c.conn, c.wsReader.State, h.OpCode)
 	}
 
 	maxLen := int(h.Length)
@@ -90,7 +92,7 @@ func (c *WSTCP) Read(b []byte) (int, error) {
 
 func (c *WSTCP) read(b []byte) (int, error) {
 	if c.firstBytes == nil {
-		return c.rwc.Read(b)
+		return c.conn.Read(b)
 	}
 
 	n := copy(b, c.firstBytes)
@@ -101,14 +103,14 @@ func (c *WSTCP) read(b []byte) (int, error) {
 	}
 
 	c.firstBytes = nil
-	n2, err := c.rwc.Read(b[n:])
+	n2, err := c.conn.Read(b[n:])
 
 	return n + n2, err
 }
 
 func (c *WSTCP) Write(b []byte) (int, error) {
 	if c.wsWriter == nil {
-		return c.rwc.Write(b)
+		return c.conn.Write(b)
 	}
 
 	n, err := c.wsWriter.Write(b)
@@ -120,5 +122,5 @@ func (c *WSTCP) Write(b []byte) (int, error) {
 }
 
 func (c *WSTCP) Close() error {
-	return c.rwc.Close()
+	return c.conn.Close()
 }
