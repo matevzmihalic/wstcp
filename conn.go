@@ -12,6 +12,7 @@ import (
 type WSTCP struct {
 	conn       io.ReadWriteCloser
 	firstBytes []byte
+	remaining  int
 
 	wsReader *wsutil.Reader
 	wsWriter *wsutil.Writer
@@ -53,6 +54,10 @@ func (c *WSTCP) Read(b []byte) (int, error) {
 		return c.read(b)
 	}
 
+	if c.remaining != 0 {
+		return c.readWS(b, c.remaining)
+	}
+
 	h, err := c.wsReader.NextFrame()
 	if err != nil {
 		return 0, err
@@ -61,6 +66,9 @@ func (c *WSTCP) Read(b []byte) (int, error) {
 	if h.OpCode.IsControl() {
 		if !c.wsReader.State.Fragmented() {
 			err := c.wsReader.OnIntermediate(h, c.wsReader)
+			if _, isClosed := err.(wsutil.ClosedError); isClosed {
+				return 0, io.EOF
+			}
 			if err != nil {
 				return 0, err
 			}
@@ -72,20 +80,35 @@ func (c *WSTCP) Read(b []byte) (int, error) {
 		c.wsWriter.Reset(c.conn, c.wsReader.State, h.OpCode)
 	}
 
-	maxLen := int(h.Length)
-	if maxLen > len(b) {
-		maxLen = len(b)
+	n, err := c.readWS(b, int(h.Length))
+	if err != nil {
+		return 0, err
+	}
+	if n < int(h.Length) {
+		return n, nil
 	}
 
-	n, err := io.ReadFull(c.wsReader, b[:maxLen])
-	if err == io.EOF {
-		err = nil
-	}
-
+	// TODO: this will not be handled correctly if len(b) is shorter than h.Length
 	if !h.Fin {
 		n2, err := c.Read(b[n:])
 		return n + n2, err
 	}
+
+	return n, nil
+}
+
+func (c *WSTCP) readWS(b []byte, maxLen int) (int, error) {
+	localMax := maxLen
+	if maxLen > len(b) {
+		localMax = len(b)
+	}
+
+	n, err := io.ReadFull(c.wsReader, b[:localMax])
+	if err == io.EOF {
+		err = nil
+	}
+
+	c.remaining = maxLen - n
 
 	return n, err
 }

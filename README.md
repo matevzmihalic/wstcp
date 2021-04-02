@@ -1,6 +1,6 @@
 # WebSocket | TCP
 
-is a Go library for serving WebSocket or TCP clients on the same connection.
+is a Go library for serving WebSocket or TCP clients on the same listener.
 It can be used as a drop in replacement to add WebSocket support to existing TCP servers.
 
 It automatically detects WebSocket clients, upgrades them and then takes care of headers and control packets.
