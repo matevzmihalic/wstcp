@@ -82,14 +82,10 @@ func (c *WSTCP) Read(b []byte) (int, error) {
 
 	n, err := c.readWS(b, int(h.Length))
 	if err != nil {
-		return 0, err
-	}
-	if n < int(h.Length) {
-		return n, nil
+		return n, err
 	}
 
-	// TODO: this will not be handled correctly if len(b) is shorter than h.Length
-	if !h.Fin {
+	if !h.Fin && n < len(b) {
 		n2, err := c.Read(b[n:])
 		return n + n2, err
 	}
@@ -97,18 +93,18 @@ func (c *WSTCP) Read(b []byte) (int, error) {
 	return n, nil
 }
 
-func (c *WSTCP) readWS(b []byte, maxLen int) (int, error) {
-	localMax := maxLen
-	if maxLen > len(b) {
-		localMax = len(b)
+func (c *WSTCP) readWS(b []byte, dataLen int) (int, error) {
+	max := dataLen
+	if max > len(b) {
+		max = len(b)
 	}
 
-	n, err := io.ReadFull(c.wsReader, b[:localMax])
+	n, err := io.ReadFull(c.wsReader, b[:max])
 	if err == io.EOF {
 		err = nil
 	}
 
-	c.remaining = maxLen - n
+	c.remaining = dataLen - n
 
 	return n, err
 }

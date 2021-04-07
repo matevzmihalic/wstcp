@@ -32,14 +32,23 @@ func TestWSTCP_integration(t *testing.T) {
 				assert.NoError(t, err)
 				defer inConn.Close()
 
-				b := make([]byte, 13)
+				const buffLen = 3
+				b := make([]byte, buffLen)
 				for {
-					n, err := conn.Read(b)
-					if err != nil {
-						return
+					fullLen := 0
+					for {
+						n, err := conn.Read(b[fullLen:])
+						fullLen += n
+						if err != nil {
+							return
+						}
+						if n != buffLen {
+							break
+						}
+						b = append(b, make([]byte, buffLen)...)
 					}
 
-					_, err = conn.Write(b[:n])
+					_, err = conn.Write(b[:fullLen])
 					assert.NoError(t, err)
 				}
 			}()
@@ -58,7 +67,7 @@ func TestWSTCP_integration(t *testing.T) {
 			for {
 				b, err := wsutil.ReadServerBinary(c)
 				out = append(out, b...)
-				if err != nil || len(out) == 11 {
+				if err != nil {
 					break
 				}
 			}
@@ -76,6 +85,7 @@ func TestWSTCP_integration(t *testing.T) {
 
 		err = ws.WriteHeader(c, ws.Header{
 			Fin:    true,
+			Masked: true,
 			OpCode: ws.OpClose,
 		})
 		assert.NoError(t, err)
